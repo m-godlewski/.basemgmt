@@ -1,7 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from database import engine, Base
+from models.item import Item
 from routes import item
+
+# create database tables
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=".basemgmt Backend API", version="0.0.1")
 

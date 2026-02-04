@@ -10,9 +10,12 @@ class ItemCreate(ItemBase):
     pass
 
 
-class ItemUpdate(ItemBase):
+class ItemUpdate(BaseModel):
     name: Optional[str] = None
 
 
 class ItemResponse(ItemBase):
     id: int
+
+    class Config:
+        from_attributes = True
