@@ -1,0 +1,2 @@
+# .basemgmt
+Basement management app.
