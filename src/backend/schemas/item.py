@@ -4,6 +4,7 @@ from typing import Optional
 
 class ItemBase(BaseModel):
     name: str
+    description: Optional[str] = None
 
 
 class ItemCreate(ItemBase):
@@ -12,10 +13,12 @@ class ItemCreate(ItemBase):
 
 class ItemUpdate(BaseModel):
     name: Optional[str] = None
+    description: Optional[str] = None
 
 
 class ItemResponse(ItemBase):
     id: int
+    has_image: bool = False
 
     class Config:
         from_attributes = True

@@ -8,41 +8,58 @@ class ItemService:
     """Service layer for 'Item' operations with PostgreSQL."""
 
     @staticmethod
-    def create_item(db: Session, item: ItemCreate) -> Item:
-        """Creates a new item in the database."""
+    def create_item(
+        db: Session, item: ItemCreate, image_bytes: Optional[bytes] = None
+    ) -> Item:
+        # create a new Item object with provided data
         db_item = Item(
             name=item.name,
+            description=item.description,
         )
+        # if user uploaded an image, sets the image bytes to created instance
+        if image_bytes:
+            db_item.image = image_bytes
+        # add the new item to database
         db.add(db_item)
         db.commit()
         db.refresh(db_item)
         return db_item
 
     @staticmethod
-    def get_item(db: Session, item_id: int) -> Optional[Item]:
-        """Fetches an item by ID."""
-        return db.query(Item).filter(Item.id == item_id).first()
-
-    @staticmethod
     def get_all_items(db: Session, skip: int = 0, limit: int = 100) -> List[Item]:
-        """Fetches all items with pagination."""
         return db.query(Item).offset(skip).limit(limit).all()
 
     @staticmethod
-    def update_item(db: Session, item_id: int, item: ItemUpdate) -> Optional[Item]:
-        """Updates an item."""
+    def get_item(db: Session, item_id: int) -> Optional[Item]:
+        return db.query(Item).filter(Item.id == item_id).first()
+
+    @staticmethod
+    def update_item(
+        db: Session, item_id: int, item: ItemUpdate, image_bytes: Optional[bytes] = None
+    ) -> Optional[Item]:
+        # fetches the existing item
         db_item = db.query(Item).filter(Item.id == item_id).first()
+        # if item exists, updates its fields
         if db_item:
-            if item.name is not None:
-                db_item.name = item.name
+            # only updates fields that are provided in the request
+            data = item.model_dump(exclude_unset=True)
+            # updates item fields with given values
+            for key, value in data.items():
+                if hasattr(db_item, key):
+                    setattr(db_item, key, value)
+            # also updates image if new image is provided
+            if image_bytes is not None:
+                db_item.image = image_bytes
             db.commit()
             db.refresh(db_item)
         return db_item
 
     @staticmethod
     def delete_item(db: Session, item_id: int) -> bool:
-        """Deletes an item."""
+        # fetches the item to be deleted
         db_item = db.query(Item).filter(Item.id == item_id).first()
+        # if item exists deletes it and return True
+        # otherwise returns False indicating item was not found
         if db_item:
             db.delete(db_item)
             db.commit()
