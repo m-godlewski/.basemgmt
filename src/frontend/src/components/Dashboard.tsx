@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
     Box,
     Container,
@@ -12,40 +12,51 @@ import {
     Alert,
     Paper,
     Button,
-} from '@mui/material';
-import CreateItemModal from './CreateItemModal';
-import { itemsClient } from '../api/client';
-import type { Item } from '../data/item';
-import logo from '../assets/logo.png';
+} from "@mui/material";
+import CreateItemModal from "./CreateItemModal";
+import { itemsClient } from "../api/client";
+import type { Item } from "../data/item";
+import logo from "../assets/logo.png";
+import ItemDetailsModal from "./ItemDetailsModal";
 
 /*
 *
 * Dashboard view.
-* TODO
+* Allows user to see list of all items, create new items and edit existing ones.
+* Items data is fetched from backend API and displayed in a table.
 * 
 */
 export default function Dashboard() {
     // state for modal creation
     const [openCreationModal, setOpenCreationModal] = useState(false);
+    // state for item details modal
+    const [openDetailsModal, setOpenDetailsModal] = useState(false);
+    // currently selected item for details modal
+    const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     // state for items list
     const [items, setItems] = useState<Item[]>([]);
     // state for data loading
     const [loading, setLoading] = useState(true);
     // state for error handling
-    const [error, setError] = useState('');
+    const [error, setError] = useState("");
 
     // method that fetches list of available items from backend
     const fetchItems = async () => {
         setLoading(true);
-        setError('');
+        setError("");
         try {
             const data = await itemsClient.getAll();
             setItems(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erorr while fetching items');
+            setError(err instanceof Error ? err.message : "Error while fetching items");
         } finally {
             setLoading(false);
         }
+    };
+
+    // callback for successful item creation, refetches items list to update view
+    const handleItemCreated = () => {
+        fetchItems();
     };
 
     // fetches items on dashboard component mount
@@ -53,17 +64,12 @@ export default function Dashboard() {
         fetchItems();
     }, []);
 
-    // callback for successful item creation, refetches items list to update view
-    const handleItemCreated = () => {
-        fetchItems();
-    };
-
     // renders dashboard component
     return (
         // main container
         <Container sx={{ width: "100%" }}>
             {/* content header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, mb: 2 }}>
                 {/* app logo */}
                 <Box component="img" src={logo} alt=".basemgmt logo" sx={{ height: 80 }} />
                 {/* item creation button */}
@@ -80,7 +86,7 @@ export default function Dashboard() {
 
             {loading ? (
                 // display loading spinner while data is being fetched
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
                     <CircularProgress />
                 </Box>
             ) : items.length === 0 ? (
@@ -91,14 +97,21 @@ export default function Dashboard() {
                 <TableContainer component={Paper} sx={{ mt: 3 }}>
                     <Table>
                         <TableHead>
-                            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                            <TableRow sx={{ bgcolor: "#f5f5f5" }}>
                                 <TableCell><strong>ID</strong></TableCell>
                                 <TableCell><strong>Name</strong></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {items.map((item) => (
-                                <TableRow key={item.id} hover>
+                                <TableRow
+                                    key={item.id}
+                                    hover
+                                    onClick={() => {
+                                        setSelectedItem(item);
+                                        setOpenDetailsModal(true);
+                                    }}
+                                >
                                     <TableCell>{item.id}</TableCell>
                                     <TableCell>{item.name}</TableCell>
                                 </TableRow>
@@ -113,6 +126,17 @@ export default function Dashboard() {
                 onClose={() => setOpenCreationModal(false)}
                 onSuccess={handleItemCreated}
             />
+            {/* item details modal */}
+            {selectedItem && (
+                <ItemDetailsModal
+                    open={openDetailsModal}
+                    onClose={() => {
+                        setOpenDetailsModal(false);
+                        setSelectedItem(null);
+                    }}
+                    item={selectedItem}
+                />
+            )}
         </Container>
     );
 }

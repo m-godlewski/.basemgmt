@@ -17,6 +17,11 @@ async function httpRequest<T>(endpoint: string, options?: RequestInit): Promise<
     return response.json();
 }
 
+/*
+* List of methods for interacting with items API endpoints of the backend.
+* Each method corresponds to a specific API endpoint and HTTP method, and handles request formatting and response parsing.
+* This abstraction allows frontend components to easily interact with the backend API without worrying about low-level details of HTTP requests and responses.
+*/
 export const itemsClient = {
     /**
      * Get all items
@@ -88,5 +93,17 @@ export const itemsClient = {
                 'Content-Type': 'application/json',
             },
         });
+    },
+
+    /**
+     * Get raw image bytes (as Blob) for a single item
+     */
+    getImage: async (id: number): Promise<Blob> => {
+        const response = await fetch(`${API_URL}/items/${id}/image`);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.detail || `API error: ${response.status}`);
+        }
+        return response.blob();
     },
 };
