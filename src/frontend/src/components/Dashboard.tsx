@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import CreateItemModal from './CreateItemModal';
 import { itemsClient } from '../api/client';
-import type { Item } from '../types/item';
+import type { Item } from '../data/item';
 import logo from '../assets/logo.png';
 
 /*
@@ -62,12 +62,10 @@ export default function Dashboard() {
     return (
         // main container
         <Container sx={{ width: "100%" }}>
-
+            {/* content header */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2 }}>
                 {/* app logo */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box component="img" src={logo} alt=".basemgmt logo" sx={{ height: 80 }} />
-                </Box>
+                <Box component="img" src={logo} alt=".basemgmt logo" sx={{ height: 80 }} />
                 {/* item creation button */}
                 <Button
                     variant="contained"

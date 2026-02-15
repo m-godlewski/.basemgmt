@@ -9,31 +9,25 @@ import {
     Alert,
     Box,
     Typography,
+    styled,
 } from '@mui/material';
+import { z, ZodError } from 'zod';
 import { itemsClient } from '../api/client';
-import { ItemCreateSchema } from '../types/item';
-import type { ItemCreateRequest } from '../types/item';
-import { ZodError } from 'zod';
+import type { ItemCreateRequest } from '../data/item';
+import { itemFormFields } from './ItemForm';
 
-// field configuration interface
-interface FieldConfig {
-    name: keyof ItemCreateRequest;
-    label: string;
-    placeholder: string;
-    type?: 'text' | 'textarea' | 'email' | 'number';
-    multiline?: boolean;
-    rows?: number;
-}
-
-// form fields configuration for item creation
-const itemFormFields: FieldConfig[] = [
-    {
-        name: 'name',
-        label: 'Item name',
-        placeholder: 'Box, Towel, etc.',
-        type: 'text',
-    },
-];
+// Styled hidden input for file upload
+const VisuallyHiddenInput = styled('input')({
+    clip: 'rect(0 0 0 0)',
+    clipPath: 'inset(50%)',
+    height: 1,
+    overflow: 'hidden',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    whiteSpace: 'nowrap',
+    width: 1,
+});
 
 // predefined props for CreateItemModal component
 interface CreateItemModalProps {
@@ -47,20 +41,17 @@ const initialFormState: ItemCreateRequest = {
     name: '',
 };
 
-/*
-*
-* TODO
-* 
-*/
 export default function CreateItemModal({ open, onClose, onSuccess }: CreateItemModalProps) {
     // state for form data
     const [formData, setFormData] = useState<ItemCreateRequest>(initialFormState);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>('');
     const [loading, setLoading] = useState(false);
     // store field-specific errors
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [generalError, setGeneralError] = useState('');
 
-    // handles input changes and updates form state
+    // handles input changes and updates form state for text fields
     const handleInputChange = (field: keyof ItemCreateRequest, value: string) => {
         setFormData((prev) => ({
             ...prev,
@@ -75,10 +66,38 @@ export default function CreateItemModal({ open, onClose, onSuccess }: CreateItem
         }
     };
 
-    // validates form data using zod schema
+    // handles image file selection
+    const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setImageFile(file);
+            // create preview URL for image
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // validates form data using zod schema - name is required, image is optional
     const validateForm = (): boolean => {
         try {
-            ItemCreateSchema.parse(formData);
+            const dataToValidate = {
+                name: formData.name,
+                description: formData.description,
+            };
+            z.object({
+                name: z.string()
+                    .min(1, 'Name is required')
+                    .min(3, 'Name has to be at least 3 characters long')
+                    .max(100, 'Name cannot be longer than 100 characters')
+                    .trim(),
+                description: z.string()
+                    .max(500, 'Description cannot be longer than 500 characters')
+                    .trim()
+                    .optional(),
+            }).parse(dataToValidate);
             setFieldErrors({});
             return true;
         } catch (err) {
@@ -104,8 +123,18 @@ export default function CreateItemModal({ open, onClose, onSuccess }: CreateItem
         }
         setLoading(true);
         try {
-            await itemsClient.create(formData);
+            const submitData: ItemCreateRequest = {
+                name: formData.name,
+                description: formData.description,
+            };
+            if (imageFile) {
+                submitData.image = imageFile;
+            }
+            // sends request to backend to create new item
+            await itemsClient.create(submitData);
             setFormData(initialFormState);
+            setImageFile(null);
+            setImagePreview('');
             onClose();
             onSuccess?.();
         } catch (err) {
@@ -118,13 +147,15 @@ export default function CreateItemModal({ open, onClose, onSuccess }: CreateItem
     // handles modal close action, resets form state and error messages
     const handleClose = () => {
         setFormData(initialFormState);
+        setImageFile(null);
+        setImagePreview('');
         setFieldErrors({});
         setGeneralError('');
         onClose();
     };
 
-    // flag that determines if form is valid
-    const isFormValid = Object.keys(fieldErrors).length === 0 && Object.values(formData).every(val => val?.toString().trim().length > 0);
+    // flag that determines if form is valid (name must not be empty)
+    const isFormValid = Object.keys(fieldErrors).length === 0 && formData.name?.trim().length > 0;
 
     // renders modal dialog with item creation forms
     return (
@@ -139,21 +170,53 @@ export default function CreateItemModal({ open, onClose, onSuccess }: CreateItem
                         <Typography sx={{ minWidth: 120, fontWeight: 500 }}>
                             {field.label}
                         </Typography>
-                        <TextField
-                            placeholder={field.placeholder}
-                            value={formData[field.name]}
-                            onChange={(e) => handleInputChange(field.name, e.target.value)}
-                            variant="outlined"
-                            disabled={loading}
-                            error={!!fieldErrors[field.name]}
-                            helperText={fieldErrors[field.name]}
-                            type={field.type || 'text'}
-                            multiline={field.multiline}
-                            rows={field.rows}
-                            sx={{ flex: 1 }}
-                        />
+                        {field.type === "file" ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                                <Button
+                                    component="label"
+                                    role={undefined}
+                                    variant="contained"
+                                    tabIndex={-1}
+                                    disabled={loading}
+                                >
+                                    Choose Image
+                                    <VisuallyHiddenInput
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                    />
+                                </Button>
+                                {imageFile && (
+                                    <Typography variant="body2">{imageFile.name}</Typography>
+                                )}
+                            </Box>
+                        ) : (
+                            <TextField
+                                value={formData[field.name] || ''}
+                                onChange={(e) => handleInputChange(field.name, e.target.value)}
+                                variant="outlined"
+                                disabled={loading}
+                                error={!!fieldErrors[field.name]}
+                                helperText={fieldErrors[field.name]}
+                                multiline={field.type === 'textarea'}
+                                minRows={field.type === 'textarea' ? 3 : 1}
+                                type={field.type || 'text'}
+                                sx={{ flex: 1 }}
+                            />
+                        )}
                     </Box>
                 ))}
+                {/* Image preview */}
+                {imagePreview && (
+                    <Box sx={{ mt: 2 }}>
+                        <Typography variant="body2" sx={{ mb: 1 }}>Image Preview:</Typography>
+                        <img 
+                            src={imagePreview} 
+                            alt="Preview" 
+                            style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 4 }} 
+                        />
+                    </Box>
+                )}
             </DialogContent>
             {/* action buttons */}
             <DialogActions>
